@@ -18,6 +18,7 @@ The system combines **computer vision (MobileNetV3)** with **agentic AI reasonin
 - 📱 Mobile-first responsive React UI
 - ⚡ Flask backend API for inference & agent logic
 - 🔒 Safe LLM explanations using **Gemini**
+---
 ## 🧩 System Architecture
 
 ```plaintext
