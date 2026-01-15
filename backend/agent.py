@@ -1,23 +1,55 @@
+from inference import predict
+from safety_rules import get_steps
+from llm import ask_llm
+
+# AGENTIC QUESTIONS (ALWAYS ASKED)
 QUESTIONS = {
     "en": [
-        "Are the spots spreading to other leaves?",
-        "Are multiple leaves affected?",
-        "Has the condition worsened recently?"
+        "Are more than 25% of plants affected?",
+        "Has there been heavy rain recently?",
+        "Is this crop in early growth stage?"
     ],
     "ta": [
-        "இந்த புள்ளிகள் மற்ற இலைகளுக்கும் பரவுகிறதா?",
-        "ஒரே செடியில் பல இலைகள் பாதிக்கப்பட்டுள்ளதா?",
-        "கடந்த நாட்களில் பாதிப்பு அதிகரித்ததா?"
+        "25%க்கும் மேற்பட்ட பயிர்கள் பாதிக்கப்பட்டுள்ளதா?",
+        "சமீபத்தில் அதிக மழை பெய்ததா?",
+        "பயிர் ஆரம்ப வளர்ச்சி நிலையிலா உள்ளது?"
     ]
 }
 
-def decide_risk(answers_score):
-    if answers_score >= 2:
-        return "HIGH"
-    elif answers_score == 1:
-        return "MEDIUM"
-    else:
-        return "LOW"
+def agriscout_agent(image, lang, answers=None):
+    prediction = predict(image)
+    risk = "HIGH" if prediction["confidence"] > 0.7 else "MEDIUM"
 
-def get_questions(lang="en"):
-    return QUESTIONS[lang]
+    # STEP 1: ALWAYS ASK QUESTIONS
+    if answers is None:
+        return {
+            "mode": "questions",
+            "prediction": prediction,
+            "questions": QUESTIONS[lang]
+        }
+
+    # STEP 2: FINAL DECISION AFTER ANSWERS
+    clean_answers = [
+        "ஆம்" if a == "yes" and lang == "ta" else
+        "இல்லை" if a == "no" and lang == "ta" else
+        "Yes" if a == "yes" else
+        "No"
+        for a in answers
+    ]
+
+    steps = get_steps(risk, lang)
+
+    advice = ask_llm(
+        prediction["class_name"],
+        risk,
+        clean_answers,
+        lang
+    )
+
+    return {
+        "mode": "final",
+        "prediction": prediction,
+        "risk": risk,
+        "steps": steps,
+        "assistant_message": advice
+    }

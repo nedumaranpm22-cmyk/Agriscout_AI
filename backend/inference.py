@@ -1,44 +1,30 @@
 import json
-import logging
+import torch
+import torchvision.transforms as transforms
 from PIL import Image
+from model_loader import load_model
 
-try:
-    import torch
-    import torchvision.transforms as transforms
-    TORCH_AVAILABLE = True
-except Exception:
-    torch = None
-    transforms = None
-    TORCH_AVAILABLE = False
-    logging.warning("torch not available; inference will return placeholder")
+# Load model ONCE
+MODEL = load_model("mobilenetv3_epoch1.pth")
 
-if TORCH_AVAILABLE:
-    transform = transforms.Compose([
-        transforms.Resize((224, 224)),
-        transforms.ToTensor()
-    ])
+with open("class.json") as f:
+    CLASS_MAP = json.load(f)
 
-try:
-    with open("class.json") as f:
-        CLASS_MAP = json.load(f)
-except Exception:
-    CLASS_MAP = {}
+transform = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.ToTensor()
+])
 
-
-def predict(model, image: Image.Image):
-    if not TORCH_AVAILABLE or model is None:
-        return {"error": "inference unavailable (torch or model missing)"}
-
-    img = transform(image).unsqueeze(0)
+def predict(image: Image.Image):
+    image = transform(image).unsqueeze(0)
 
     with torch.no_grad():
-        outputs = model(img)
+        outputs = MODEL(image)
         probs = torch.softmax(outputs, dim=1)[0]
 
     conf, idx = torch.max(probs, 0)
 
     return {
-        "class_id": int(idx),
         "class_name": CLASS_MAP.get(str(int(idx)), "unknown"),
         "confidence": round(float(conf), 4)
     }
